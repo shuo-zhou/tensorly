@@ -33,6 +33,7 @@ For each backend, tensorly provides the following uniform functions:
     zeros
     zeros_like
     eye
+    diag
     where
     clip
     max

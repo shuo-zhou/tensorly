@@ -9,10 +9,10 @@ import inspect
 
 _DEFAULT_BACKEND = 'numpy'
 _KNOWN_BACKENDS = {'numpy': 'NumpyBackend',
-                   'mxnet':'MxnetBackend', 
-                   'pytorch':'PyTorchBackend', 
-                   'tensorflow':'TensorflowBackend',
-                   'cupy':'CupyBackend',
+                   'mxnet': 'MxnetBackend',
+                   'pytorch': 'PyTorchBackend',
+                   'tensorflow': 'TensorflowBackend',
+                   'cupy': 'CupyBackend',
                    'jax': 'JaxBackend'}
 
 _LOADED_BACKENDS = {}
@@ -196,6 +196,7 @@ ones = dispatch(Backend.ones)
 zeros = dispatch(Backend.zeros)
 zeros_like = dispatch(Backend.zeros_like)
 eye = dispatch(Backend.eye)
+diag = dispatch(Backend.diag)
 where = dispatch(Backend.where)
 clip = dispatch(Backend.clip)
 max = dispatch(Backend.max)

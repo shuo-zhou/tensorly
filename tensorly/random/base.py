@@ -83,8 +83,8 @@ def random_parafac2(shapes, rank, full=False, random_state=None,
         return parafac2_tensor
 
 
-def random_cp(shape, rank, full=False, orthogonal=False, 
-                   random_state=None, normalise_factors=True, **context):
+def random_cp(shape, rank, full=False, orthogonal=False,
+              random_state=None, normalise_factors=True, **context):
     """Generates a random CP tensor
 
     Parameters
@@ -126,6 +126,7 @@ def random_cp(shape, rank, full=False, orthogonal=False,
     else:
         return CPTensor((weights, factors))
 
+
 def random_tucker(shape, rank, full=False, orthogonal=False, random_state=None, **context):
     """Generates a random Tucker tensor
 
@@ -158,7 +159,7 @@ def random_tucker(shape, rank, full=False, orthogonal=False, random_state=None, 
         for i, (s, r) in enumerate(zip(shape, rank)):
             if r > s:
                 warnings.warn('Selected orthogonal=True, but selected a rank larger than the tensor size for mode {0}: '
-                             'rank[{0}]={1} > shape[{0}]={2}.'.format(i, r, s))
+                              'rank[{0}]={1} > shape[{0}]={2}.'.format(i, r, s))
 
     factors = []
     for (s, r) in zip(shape, rank):
