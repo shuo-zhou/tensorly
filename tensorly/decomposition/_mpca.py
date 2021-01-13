@@ -2,97 +2,34 @@
 # Author: Shuo Zhou, szhou20@sheffield.ac.uk
 #         Haiping Lu, h.lu@sheffield.ac.uk or hplu@ieee.org
 # =============================================================================
-# import numpy as np
 import tensorly as tl
-from ..base import unfold, fold
+from ..base import unfold
 from ..tenalg import multi_mode_dot
 
 # License: BSD 3 clause
 
 
-def _remove_mode_mean(tensor, mode=0):
-    """Remove mean of a tensor along the given mode
-
-        Parameters
-        ----------
-        tensor : Tensor
-            Input data to remove mean, shape (I_1, I_2, ..., I_N), where I_1,
-            I_2, ..., I_N are the dimensions of corresponding mode (1, 2, ...,
-            N), respectively.
-        mode : int
-            Along which mode to compute the mean, by default 0.
-
-        Returns
-        -------
-        tensor_scaled: Tensor
-            Tensor data which mean has been removed, (I_1, I_2, ..., I_N).
-        tensor_mean: Tensor
-            Mean tensor estimated from the training set, shape (I_1, I_2, ...,
-            I_mode-1, I_mode+1, ..., I_N).
-        """
-    tensor_unfold = unfold(tensor, mode=mode)
-    tensor_mean = tl.mean(tensor_unfold, axis=0)
-    tensor_scaled = tensor_unfold - tensor_mean
-    tensor_scaled = fold(tensor_scaled, mode=mode, shape=tensor.shape)
-
-    if mode < 0:
-        mode = tl.ndim(tensor) + mode
-    mean_shape = ()
-    for i in range(len(tensor.shape)):
-        if i != mode:
-            mean_shape += (tensor.shape[i],)
-    mean_shape += (1,)
-    tensor_mean = fold(tensor_mean, -1, mean_shape)
-    tensor_mean = tensor_mean[..., 0]
-
-    return tensor_scaled, tensor_mean
-
-
-def _reduce_mean(tensor):
-    """Remove mean of a tensor along the last dimension
-
-    Parameters
-    ----------
-    tensor : Tensor
-        Input data to remove mean, shape (I_1, I_2, ..., I_N, n_samples),
-        where n_samples is the number of samples, I_1, I_2, ..., I_N are 
-        the dimensions of corresponding mode (1, 2, ..., N), respectively.
-
-    Returns
-    -------
-    tensor_scaled: Tensor
-        Tensor data which mean has been removed, (I_1, I_2, ..., I_N, n_samples).
-    tensor_mean: Tensor
-        Mean tensor estimated from the training set, shape (I_1, I_2, ..., I_N).
-    """
-
-    tensor_mean = tl.mean(tensor, axis=-1)
-    n_sample = tensor.shape[-1]
-    tensor_scaled = tensor.copy()
-    for i in range(n_sample):
-        tensor_scaled[..., i] = tensor[..., i] - tensor_mean
-        
-    return tensor_scaled, tensor_mean
-
-
-def mpca(tensor, var_ratio=0.95, max_iter=1):
+def mpca(tensor, var_ratio=0.95, max_iter=1, mean_removal=True):
     """Multilinear Principal Component Analysis (MPCA)
 
     Parameters
     ----------
     tensor : Tensor
-        Input data, shape (I_1, I_2, ..., I_N, n_samples), where n_samples
+        Input data, shape (n_samples, I_1, I_2, ..., I_N), where n_samples
         is the number of samples, I_1, I_2, ..., I_N are the dimensions of 
         corresponding mode (1, 2, ..., N), respectively.
     var_ratio : float, optional
         Percentage of variance explained to keeep (between 0 and 1), by default 0.95
     max_iter : int, optional
-        Maximum number of iteration, by default 1
+        Maximum number of iteration, by default 1.
+    mean_removal: bool, optional
+        Whether remove the mean from training data, by default True.
 
     Returns
     -------
-    proj_mats: Tensor list
-        A list of transposed projection matrices list of transposed projection matrices.
+    factors: Tensor list
+        A list of transposed projection matrices list of transposed projection matrices, shapes 
+        (P_1, I_1), ..., (P_N, I_N), where P_1, ..., P_N are output tensor shape for each sample.
     idx_order: Tensor
         The ordering index of projected (and vectorised) features in descending variance.
     tensor_mean: Tensor
@@ -112,21 +49,18 @@ def mpca(tensor, var_ratio=0.95, max_iter=1):
         >>> from tensorly.base import unfold
         >>> from tensorly.tenalg import multi_mode_dot
         >>> from tensorly.decomposition import mpca
-        >>> tensor = tl.tensor(np.random.random((20, 25, 20, 40)))
+        >>> tensor = tl.tensor(np.random.random((40, 20, 25, 20)))
         >>> tensor.shape
-        (20, 25, 20, 40)
-        >>> proj_mats, idx_order, tensor_mean = mpca(tensor)
-        >>> n_sample = tensor.shape[-1]
-        >>> for i in range(n_sample):
-        >>>     tensor[..., i] = tensor[..., i] - tensor_mean
-        >>> tensor_pc = multi_mode_dot(tensor, proj_mats, modes=[0, 1, 2])
+        (40, 20, 25, 20)
+        >>> factors, idx_order, tensor_mean = mpca(tensor)
+        >>> tensor_pc = multi_mode_dot(tensor - tensor_mean, factors, modes=[1, 2, 3])
         >>> tensor_pc.shape
-        (18, 23, 18, 40)
-        >>> tensor_rec = multi_mode_dot(tensor_pc, proj_mats, modes=[0, 1, 2], transpose=True)
+        (40, 18, 23, 18)
+        >>> tensor_pc_vec = unfold(tensor_pc, mode=0)
+        >>> tensor_pc_vec_sorted = tensor_pc_vec[:, idx_order]
+        >>> tensor_rec = multi_mode_dot(tensor_pc, factors, modes=[1, 2, 3], transpose=True) + tensor_mean
         >>> tensor_rec.shape
-        (20, 25, 20, 40)
-        >>> tensor_unfold = unfold(tensor_pc, mode=-1)
-        >>> tensor_unfold_sorted = tensor_unfold[:, idx_order]
+        (40, 20, 25, 20)
     """
     if var_ratio <= 0 or var_ratio > 1:
         raise ValueError('var_ratio value should be in range (0, 1], but given %s.' % var_ratio)
@@ -134,27 +68,30 @@ def mpca(tensor, var_ratio=0.95, max_iter=1):
     n_dim = tl.ndim(tensor)
     if not n_dim >= 2:
         raise ValueError('Input tensor should be at least a 2D matrix, but given a vector.')
-    dim_in = tensor.shape
-    n_spl = dim_in[-1]
+    n_spl = tensor.shape[0]
 
     # tensor_ = tl.zeros(tensor.shape)  # normalised tensor (mean removal)
-    tensor_, tensor_mean = _remove_mode_mean(tensor, mode=-1)
+    if mean_removal:
+        tensor_mean = tl.mean(tensor, axis=0)
+        tensor_ = tensor - tensor_mean  # remove_mode_mean(tensor, mode=-1)
+    else:
+        tensor_ = tensor
+        tensor_mean = tl.zeros(shape=tensor.shape[1:])
     # init
     phi = dict()
     eig_vecs_sorted = dict()  # dictionary of eigenvectors for all modes
     # lambdas = dict()  # dictionary of eigenvalues for all modes
     # cums = dict()  # cumulative distribution of eigenvalues for all modes
-    proj_mats = []
+    factors = []
     shape_out = ()
-    for i in range(n_spl):
-        # tensor_[..., i] = tensor[..., i] - tensor_mean
-        for j in range(n_dim - 1):
-            tensor_i = unfold(tensor_[..., i], mode=j)
+    for i in range(1, n_dim):
+        for j in range(n_spl):
+            tensor_j = unfold(tensor_[j, :], mode=i - 1)
             if j not in phi:
-                phi[j] = 0
-            phi[j] = phi[j] + tl.dot(tensor_i, tensor_i.T)
+                phi[i] = 0
+            phi[i] = phi[i] + tl.dot(tensor_j, tensor_j.T)
 
-    for i in range(n_dim - 1):
+    for i in range(1, n_dim):
         u, s, v = tl.partial_svd(phi[i])
         idx_sorted = (-s).argsort()
         eig_vecs_sorted[i] = u[:, idx_sorted]
@@ -165,32 +102,32 @@ def mpca(tensor, var_ratio=0.95, max_iter=1):
             if tl.sum(cum[:j]) / var_tot > var_ratio:
                 shape_out += (j,)
                 break
-        proj_mats.append(eig_vecs_sorted[i][:, :shape_out[i]].T)
+        factors.append(eig_vecs_sorted[i][:, :shape_out[i - 1]].T)
 
     for i_iter in range(max_iter):
         phi = dict()
-        for i in range(n_dim - 1):  # ith mode
+        for i in range(1, n_dim):  # ith mode
             if i not in phi:
                 phi[i] = 0
             for j in range(n_spl):
-                tensor_j = tensor_[..., j]  # jth tensor/sample
+                tensor_j = tensor_[j, :]  # jth tensor/sample
                 # principal component of tensor j
-                tpc_j = multi_mode_dot(tensor_j, [proj_mats[m] for m in range(n_dim - 1) if m != i],
-                                       modes=[m for m in range(n_dim - 1) if m != i])
-                tpc_j_unfold = unfold(tpc_j, i)
+                tpc_j = multi_mode_dot(tensor_j, [factors[m] for m in range(n_dim - 1) if m != i - 1],
+                                       modes=[m for m in range(n_dim - 1) if m != i - 1])
+                tpc_j_unfold = unfold(tpc_j, i - 1)
                 phi[i] = tl.dot(tpc_j_unfold, tpc_j_unfold.T) + phi[i]
 
             u, s, v = tl.partial_svd(phi[i])
             idx_sorted = (-s).argsort()
             # lambdas[i] = s[idx_sorted]
-            proj_mats[i] = u[:, idx_sorted]
-            proj_mats[i] = (proj_mats[i][:, :shape_out[i]]).T
+            factors[i - 1] = u[:, idx_sorted]
+            factors[i - 1] = (factors[i - 1][:, :shape_out[i - 1]]).T
 
     # tensor principal components
-    tpc = multi_mode_dot(tensor_, proj_mats, modes=[m for m in range(n_dim - 1)])
-    tpc_unfold = unfold(tpc, mode=-1)  # vectorise the transformed features
-    # diagonal of the covariance of vectorised features
-    tpc_cov_diag = tl.diag(tl.dot(tpc_unfold, tpc_unfold.T))
+    tpc = multi_mode_dot(tensor_, factors, modes=[m for m in range(1, n_dim)])
+    tpc_unfold = unfold(tpc, mode=0)  # vectorise tensor principal components
+    # diagonal of the covariance of tensor principal components
+    tpc_cov_diag = tl.diag(tl.dot(tpc_unfold.T, tpc_unfold))
     idx_order = (-tpc_cov_diag).argsort()
 
-    return proj_mats, idx_order, tensor_mean
+    return factors, idx_order, tensor_mean
