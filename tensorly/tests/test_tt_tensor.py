@@ -5,14 +5,14 @@ from ..decomposition import tensor_train
 from ..tt_tensor import tt_to_tensor, _validate_tt_tensor
 from ..tt_tensor import validate_tt_rank, _tt_n_param
 from ..testing import assert_array_almost_equal, assert_equal, assert_raises, assert_
-from ..random import check_random_state, random_tt
+from ..random import random_tt
 
 
 def test_validate_tt_tensor():
-    rng = check_random_state(12345)
+    rng = tl.check_random_state(12345)
     true_shape = (3, 4, 5)
     true_rank = (1, 3, 2, 1)
-    factors = random_tt(true_shape, rank=true_rank)
+    factors = random_tt(true_shape, rank=true_rank).factors
     
     # Check that the correct shape/rank are returned
     shape, rank = _validate_tt_tensor(factors)
@@ -38,10 +38,6 @@ def test_validate_tt_tensor():
     factors[0] = tl.tensor(rng.random_sample((3, 3, 2)))
     with assert_raises(ValueError):
         _validate_tt_tensor(factors)
-
-    # Not enough factors
-    with assert_raises(ValueError):
-        _validate_tt_tensor(factors[:1])
 
 
 def test_tt_to_tensor():
@@ -123,24 +119,26 @@ def test_tt_to_tensor_random():
 
 def test_tt_n_param():
     """Test for _tt_n_param"""
-    tensor_shape = (2, 3, 4, 1, 5)
+    tensor_shape = (4, 5, 4, 8, 5)
     rank = (1, 3, 2, 2, 4, 1)
     factors = random_tt(shape=tensor_shape, rank=rank)
     true_n_param = np.sum([np.prod(tl.shape(f)) for f in factors])
     n_param = _tt_n_param(tensor_shape, rank)
     assert_equal(n_param, true_n_param)
 
-def testvalidate_tt_rank():
+def test_validate_tt_rank():
     """Test for validate_tt_rank with random sizes"""
-    tensor_shape = tuple(np.random.randint(1, 100, size=4))
+    tensor_shape = tuple(np.random.randint(5, 10, size=4))
     n_param_tensor = np.prod(tensor_shape)
+    coef = 0.2
 
     # Rounding = floor
-    rank = validate_tt_rank(tensor_shape, rank='same', rounding='floor')
+    rank = validate_tt_rank(tensor_shape, rank=coef, rounding='floor')
     n_param = _tt_n_param(tensor_shape, rank)
-    assert_(n_param <= n_param_tensor)
+    assert_(n_param <= n_param_tensor*coef)
 
     # Rounding = ceil
-    rank = validate_tt_rank(tensor_shape, rank='same', rounding='ceil')
+    rank = validate_tt_rank(tensor_shape, rank=coef, rounding='ceil')
     n_param = _tt_n_param(tensor_shape, rank)
-    assert_(n_param >= n_param_tensor)
+    assert_(n_param >= n_param_tensor*coef)
+

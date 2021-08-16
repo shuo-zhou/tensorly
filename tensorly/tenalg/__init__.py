@@ -3,7 +3,7 @@ The :mod:`tensorly.tenalg` module contains utilities for Tensor Algebra
 operations such as khatri-rao or kronecker product, n-mode product, etc.
 """ 
 from contextlib import contextmanager
-
+import os
 from functools import wraps
 import warnings
 
@@ -22,17 +22,47 @@ from . import einsum_tenalg
 from ..backend import _LOCAL_STATE
 
 _DEFAULT_TENALG_BACKEND = 'core'
-_LOCAL_STATE.tenalg_backend = _DEFAULT_TENALG_BACKEND
 
-_BACKENDS = {'core':core,
-             'einsum':einsum_tenalg}
+_TENALG_BACKENDS = {'core':core,
+                    'einsum':einsum_tenalg}
 
+def initialize_tenalg_backend():
+    """Initialises the backend
+
+    1) retrieve the default backend name from the `TENSORLY_TENALG_BACKEND` environment variable
+        if not found, use _DEFAULT_TENALG_BACKEND
+    2) sets the backend to the retrieved backend name
+    """
+    tenalg_backend_name = os.environ.get('TENSORLY_TENALG_BACKEND', _DEFAULT_TENALG_BACKEND)
+    if tenalg_backend_name not in _TENALG_BACKENDS:
+        msg = ("TENSORLY_BACKEND should be one of {}, got {}. Defaulting to {}'").format(
+            ', '.join(map(repr, _TENALG_BACKENDS)),
+            tenalg_backend_name, _DEFAULT_TENALG_BACKEND)
+        warnings.warn(msg, UserWarning)
+        tenalg_backend_name = _DEFAULT_TENALG_BACKEND
+
+    set_tenalg_backend(tenalg_backend_name, local_threadsafe=False)
 
 def get_tenalg_backend():
+    """Returns the current backend
+    """
     return _LOCAL_STATE.tenalg_backend
 
 def set_tenalg_backend(backend='core', local_threadsafe=False):
-    if backend in _BACKENDS:
+    """Set the current tenalg backend
+
+    Parameters
+    ----------
+    backend : {'core', 'einsum'}
+        * if 'core', our manually optimized implementations are used 
+        * if 'einsum', all operations are dispatched to ``einsum``
+
+    If True, the backend will not become the default backend for all threads.
+        Note that this only affects threads where the backend hasn't already
+        been explicitly set. If False (default) the backend is set for the
+        entire session.
+    """
+    if backend in _TENALG_BACKENDS:
         _LOCAL_STATE.tenalg_backend = backend
         if local_threadsafe == False:
             global _DEFAULT_TENALG_BACKEND
@@ -46,8 +76,9 @@ def tenalg_backend_context(backend, local_threadsafe=False):
 
     Parameters
     ----------
-    backend : {'numpy', 'mxnet', 'pytorch', 'tensorflow', 'cupy'}
-        The name of the backend to use. Default is 'numpy'.
+    backend : {'core', 'einsum'}
+        * if 'core', our manually optimized implementations are used 
+        * if 'einsum', all operations are dispatched to ``einsum``
     local_threadsafe : bool, optional
         If True, the backend will not become the default backend for all threads.
         Note that this only affects threads where the backend hasn't already
@@ -58,9 +89,9 @@ def tenalg_backend_context(backend, local_threadsafe=False):
     --------
     Set the backend to numpy globally for this thread:
 
-    >>> import tensorly as tl
-    >>> tl.set_backend('numpy')
-    >>> with tl.backend_context('pytorch'):
+    >>> import tensorly.tenalg as tlg
+    >>> tlg.set_tenalg_backend('core')
+    >>> with tlg.set_tenalg_backend('einsum'):
     ...     pass
     """
     _old_backend = get_tenalg_backend()
@@ -76,7 +107,11 @@ def dynamically_dispatch_tenalg(function):
     @wraps(function)
     def dynamically_dispatched_fun(*args, **kwargs):
         #print('hello')
-        current_backend = _BACKENDS[_LOCAL_STATE.tenalg_backend]
+        try:
+            current_backend = _TENALG_BACKENDS[_LOCAL_STATE.tenalg_backend]
+        except AttributeError:
+            current_backend = _TENALG_BACKENDS[_DEFAULT_TENALG_BACKEND]
+            
         if hasattr(current_backend, name):
             fun = getattr(current_backend, name)(*args, **kwargs)
         else:
@@ -98,4 +133,4 @@ tensor_dot = dynamically_dispatch_tenalg(tensor_dot)
 batched_tensor_dot = dynamically_dispatch_tenalg(batched_tensor_dot)
 higher_order_moment = dynamically_dispatch_tenalg(higher_order_moment)
 
-set_tenalg_backend(_DEFAULT_TENALG_BACKEND, local_threadsafe=False)
+initialize_tenalg_backend()

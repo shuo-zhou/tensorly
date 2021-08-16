@@ -1,4 +1,4 @@
-__version__ = '0.5.1'
+__version__ = '0.6.1'
 
 import sys
 
@@ -26,7 +26,9 @@ from .backend import (context, tensor, is_tensor, shape, ndim, to_numpy, copy,
                       concatenate, reshape, transpose, moveaxis, arange, ones,
                       zeros, zeros_like, eye, where, clip, max, min, argmax,
                       argmin, all, mean, sum, prod, sign, abs, sqrt, norm, dot,
-                      kron, solve, qr, kr, partial_svd, stack)
+                      kron, solve, qr, kr, partial_svd, stack, eps, finfo,
+                      index_update, check_random_state, randomized_svd,
+                      randomized_range_finder, log2, sin, cos)
 
 
 # Deprecated

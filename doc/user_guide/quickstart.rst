@@ -9,7 +9,7 @@ Organization of TensorLy
 TensorLy is organized in several submodule:
 
 ================================= ================================
-module                             Description
+Module                             Description
 ================================= ================================
 :mod:`tensorly`                   Core operations,  includes regular array manipulation and tensor specific ones. 
 :mod:`tensorly.tucker_tensor`     Manipulate tensors in decomposed Tucker form
@@ -44,8 +44,8 @@ For instance, `tensorly.max` calls either the MXNet, NumPy or PyTorch version de
 
 .. note::
    
-   By default, the backend is set to NumPy. You can change the backend using ``tensorly.set_backend`.
-   For instance, to switch to pytorch, simply type ``tensorly.set_backend('pytorch').
+   By default, the backend is set to NumPy. You can change the backend using ``tensorly.set_backend``.
+   For instance, to switch to pytorch, simply type ``tensorly.set_backend('pytorch')``.
    For more information on the backend, refer to :doc:`./backend`.
 
 
@@ -71,8 +71,16 @@ Now, if you want to use PyTorch instead:
    # TensorLy now uses TensorLy for all operations
 
    tensor = random.random_tensor((10, 10, 10))
-   # This will be a NumPy array by default
+   # This will be a PyTorch array by default
 
+
+In all cases, you manipulate tensors in the same way:
+
+.. code-block:: python
+
+   tl.max(tensor)
+   tl.mean(tensor)
+   tl.dot(tl.unfold(tensor, 0), tl.transpose(tl.unfold(tensor, 0)))
 
 Note that you can also access the backend functions explicitely through `tensorly.backend`:
 
@@ -80,7 +88,7 @@ Note that you can also access the backend functions explicitely through `tensorl
 
    import tensorly.backend as T
 
-   T.unfold(tensor)
+   T.max(tensor)
 
 
 
@@ -109,7 +117,7 @@ Generally you can manipulate decomposed tensors using the corresponding submodul
 :mod:`tensorly.tucker_tensor`,
 :mod:`tensorly.cp_tensor`,
 :mod:`tensorly.tt_tensor`,
-:mod:`tensorly.tt_matrix_tensor`, 
+:mod:`tensorly.tt_matrix`, 
 :mod:`tensorly.parafac2_tensor`.
 
 

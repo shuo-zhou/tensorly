@@ -1,9 +1,9 @@
-name: Build documentation
+name: Deploy to Pypi
 
 on:
   push:
-    branches:
-      - main
+    tags:
+    - '*'
 
 jobs:
   build:
@@ -22,16 +22,31 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install -r doc/requirements_doc.txt
-      - name: Install package
-        run: |
-          python -m pip install -e .
+          pip install setuptools wheel
       - name: Make doc
         run: |
           cd doc
           python minify.py
           make html
           cd ..
-      - name: Push doc to website
+      - name: Install package
+        run: |
+          python -m pip install -e .
+      - name: Build a binary wheel and a source tarball
+        run: |
+          python setup.py sdist bdist_wheel
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_PASSWORD }}
+          repository_url: https://test.pypi.org/legacy/
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_PASSWORD }}
+      - name: Push doc to stable
         if: success()
         run: |
           # Add deploy key and clone through ssh
@@ -47,11 +62,8 @@ jobs:
           git clone "git@github.com:tensorly/tensorly.github.io.git" doc_folder
           echo "-- Updating the content"
           cd doc_folder
-          git rm -r dev/*
-          mkdir -p dev
-          echo "Copying to folder"
-          cp -r ../doc/_build/html/* dev/
+          cp -r dev/* stable/
           echo "Pushing to git"
-          git add dev
-          git commit -m "Github action: auto-update."
+          git add stable
+          git commit -m "Github action: new release."
           git push --force origin main

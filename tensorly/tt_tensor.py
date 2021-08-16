@@ -12,10 +12,12 @@ import warnings
 def _validate_tt_tensor(tt_tensor):
     factors = tt_tensor
     n_factors = len(factors)
-    
-    if n_factors < 2:
-        raise ValueError('A Tensor-Train (MPS) tensor should be composed of at least two factors.'
-                         'However, {} factor was given.'.format(n_factors))
+
+    if isinstance(tt_tensor, TTTensor):
+        # it's already been validated at creation
+        return tt_tensor.shape, tt_tensor.rank
+    elif isinstance(tt_tensor, (float, int)): #0-order tensor
+        return 0, 0
 
     rank = []
     shape = []
@@ -69,6 +71,9 @@ def tt_to_tensor(factors):
     output_tensor : ndarray
                    tensor whose TT/MPS decomposition was given by 'factors'
     """
+    if isinstance(factors, (float, int)): #0-order tensor
+        return factors
+
     full_shape = [f.shape[1] for f in factors]
     full_tensor = tl.reshape(factors[0], (full_shape[0], -1))
 
@@ -140,7 +145,8 @@ def _tt_n_param(tensor_shape, rank):
     return np.sum(factor_params)
 
 
-def validate_tt_rank(tensor_shape, rank='same', constant_rank=False, rounding='round'):
+def validate_tt_rank(tensor_shape, rank='same', constant_rank=False, rounding='round',
+                     allow_overparametrization=True):
     """Returns the rank of a TT Decomposition
 
     Parameters
@@ -159,6 +165,10 @@ def validate_tt_rank(tensor_shape, rank='same', constant_rank=False, rounding='r
         *used only if rank == 'same' or 0 < rank <= 1*
 
     rounding = {'round', 'floor', 'ceil'}
+
+    allow_overparametrization : bool, default is True
+        if False, the rank must be realizable through iterative application of SVD 
+        (used in tensorly.decomposition.tensor_train)
 
     Returns
     -------
@@ -238,8 +248,18 @@ def validate_tt_rank(tensor_shape, rank='same', constant_rank=False, rounding='r
         if rank[-1] != 1:
             message = 'Provided rank[-1] == {} but boundaring conditions dictatate rank[0] == rank[-1] == 1: setting rank[-1] to 1.'.format(rank[0])
             raise ValueError(message)
+    
+    if allow_overparametrization:
+        return list(rank)
+    else:
+        validated_rank = [1]
+        for i, s in enumerate(tensor_shape[:-1]):
+            n_row = int(rank[i]*s)
+            n_column = np.prod(tensor_shape[(i+1):]) # n_column of unfolding
+            validated_rank.append(min(n_row, n_column, rank[i+1]))
+        validated_rank.append(1)
 
-    return list(rank)
+        return validated_rank
 
 
 class TTTensor(FactorizedTensor):
@@ -279,7 +299,6 @@ class TTTensor(FactorizedTensor):
     
     def to_vec(self):
         return tt_to_vec(self)
-
 
 mps_to_tensor = DefineDeprecated(deprecated_name='mps_to_tensor', use_instead=tt_to_tensor)
 mps_to_unfolded = DefineDeprecated(deprecated_name='mps_to_unfolded', use_instead=tt_to_unfolded)
