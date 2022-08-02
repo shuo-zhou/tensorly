@@ -17,6 +17,7 @@ from .tucker_tensor import (tucker_to_tensor, tucker_to_unfolded,
 from .tt_tensor import tt_to_tensor, tt_to_unfolded, tt_to_vec, validate_tt_rank
 from .tt_matrix import (tt_matrix_to_tensor, tt_matrix_to_tensor, validate_tt_matrix_rank,
                         tt_matrix_to_unfolded, tt_matrix_to_vec, tt_matrix_to_matrix)
+from .tr_tensor import tr_to_tensor, tr_to_unfolded, tr_to_vec, validate_tr_rank
 
 from .backend import (set_backend, get_backend,
                       backend_context, _get_backend_dir,
@@ -26,9 +27,9 @@ from .backend import (context, tensor, is_tensor, shape, ndim, to_numpy, copy,
                       concatenate, reshape, transpose, moveaxis, arange, ones,
                       zeros, zeros_like, eye, where, clip, max, min, argmax,
                       argmin, all, mean, sum, prod, sign, abs, sqrt, norm, dot,
-                      kron, solve, qr, kr, partial_svd, stack, eps, finfo,
-                      index_update, check_random_state, randomized_svd,
-                      randomized_range_finder, log2, sin, cos)
+                      kron, solve, lstsq, qr, kr, partial_svd, stack, eps, finfo,
+                      matmul, index_update, check_random_state, randomized_svd,
+                      randn, randomized_range_finder, log2, sin, cos)
 
 
 # Deprecated

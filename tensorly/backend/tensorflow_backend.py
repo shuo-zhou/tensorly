@@ -92,8 +92,19 @@ class TensorflowBackend(Backend):
             order = np.inf
         return tf.norm(tensor=tensor, ord=order, axis=axis)
 
-    def dot(self, tensor1, tensor2):
-        return tf.tensordot(tensor1, tensor2, axes=([self.ndim(tensor1) - 1], [0]))
+    def dot(self, a, b):
+        if self.ndim(a) > 2 and self.ndim(b) > 2:
+            return tf.tensordot(a, b, axes=([-1], [-2]))
+        if not self.ndim(a) or not self.ndim(b):
+            return a * b
+        return self.matmul(a, b)
+
+    def matmul(self, a, b):
+        if self.ndim(b) == 1:
+            return tf.tensordot(a, b, 1)
+        if self.ndim(a) == 1:
+            return tf.tensordot(a, b, axes=([-1], [-2]))
+        return tf.linalg.matmul(a, b)
 
     @staticmethod
     def conj(x, *args, **kwargs):
@@ -135,7 +146,17 @@ class TensorflowBackend(Backend):
             return tf.reverse(tensor, axis=[i for i in range(self.ndim(tensor))])
         else:
             return tf.reverse(tensor, axis=axis)
-    
+
+    @staticmethod
+    def lstsq(a, b):
+        n = a.shape[1]
+        if tf.rank(b) == 1:
+            x = tf.squeeze(tf.linalg.lstsq(a, tf.expand_dims(b, -1), fast=False), -1)
+        else:
+            x = tf.linalg.lstsq(a, b, fast=False)
+        residuals = tf.norm(tf.tensordot(a, x, 1) - b, axis=0) ** 2
+        return x, residuals if tf.linalg.matrix_rank(a) == n else tf.constant([])
+
     def svd(self, matrix, full_matrices):
         """ Correct for the atypical return order of tf.linalg.svd. """
         S, U, V = tf.linalg.svd(matrix, full_matrices=full_matrices)
@@ -172,7 +193,7 @@ _FUN_NAMES = [
     (np.complex64, 'complex64'),
     (tf.ones, 'ones'),
     (tf.zeros, 'zeros'),
-    (tf.linalg.tensor_diag, 'diag'),
+    (tf.linalg.diag, 'diag'),
     (tf.zeros_like, 'zeros_like'),
     (tf.eye, 'eye'),
     (tf.reshape, 'reshape'),

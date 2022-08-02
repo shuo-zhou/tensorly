@@ -625,6 +625,59 @@ class Backend(object):
         raise NotImplementedError
 
     @staticmethod
+    def matmul(a, b):
+        """Matrix multiplication of tensors representing (batches of) matrices
+
+        Parameters
+        ----------
+        a : tl.tensor
+            [description]
+        b : tl.tensor
+            tensors representing the matrices to contract
+
+        Returns
+        -------
+        a @ b
+            matrix product of a and b
+
+        Notes
+        -----
+        The behavior depends on the arguments in the following way.
+
+            * If both arguments are 2-D they are multiplied like conventional matrices.
+
+            * If either argument is N-D, N > 2, it is treated as a stack of matrices residing in the last two indexes and broadcast accordingly.
+
+            * If the first argument is 1-D, it is promoted to a matrix by prepending a 1 to its dimensions. After matrix multiplication the prepended 1 is removed.
+
+            * If the second argument is 1-D, it is promoted to a matrix by appending a 1 to its dimensions. After matrix multiplication the appended 1 is removed.
+        
+        `matmul` differs from dot in two important ways:
+
+           * Multiplication by scalars is not allowed, use * instead.
+
+           * Stacks of matrices are broadcast together as if the matrices were elements, respecting the signature ``(n,k),(k,m)->(n,m)``:
+
+           .. code-block:: python
+
+              >>> a = np.ones([9, 5, 7, 4])
+
+              >>> c = np.ones([9, 5, 4, 3])
+
+              >>> np.dot(a, c).shape
+              (9, 5, 7, 9, 5, 3)
+
+              >>> np.matmul(a, c).shape
+              (9, 5, 7, 3)
+
+              >>> # n is 7, k is 4, m is 3
+
+        The matmul function implements the semantics of the ``@`` operator introduced in Python 3.5 following `PEP 465 <https://www.python.org/dev/peps/pep-0465/>`_.
+        """
+        raise NotImplementedError
+
+
+    @staticmethod
     def tensordot(a, b, axes=2):
         """
         Compute tensor dot product along specified axes.
@@ -689,6 +742,30 @@ class Backend(object):
         -------
         x : tensor, shape (M,) or (M, K)
             Solution to the system a x = b. Returned shape is identical to `b`.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def lstsq(a, b):
+        """Computes a solution to the least squares problem :math:`||ax-b||_F`
+
+        If the coefficient martix is underdetermined (m<n) and multiple
+        solutions exist, the min norm solution is returned.
+
+        Parameters
+        ----------
+        a : tensor, shape (M, N)
+            The coefficient matrix.
+        b : tensor, shape (M,) or (M, K)
+             The ordinate values.
+
+        Returns
+        -------
+        x : tensor, shape (N,) or (N, K)
+            Solution to the least squares problem :math:`||ax-b||_F`.
+        residuals : tensor, shape (K,)
+            Sums of squared residuals: Squared Euclidean 2-norm for each column in ax-b.
+            If the rank of a is < N or M <= N, this is an empty tensor.
         """
         raise NotImplementedError
 
@@ -999,17 +1076,24 @@ class Backend(object):
                 S, U = scipy.sparse.linalg.eigsh(
                     np.dot(matrix, matrix.T.conj()), k=n_eigenvecs, which='LM', v0=v0
                 )
-                S = np.where(np.abs(S) <= np.finfo(S.dtype).eps, 0, np.sqrt(S))
+                S = np.sqrt(np.clip(S, 0, None))
+                S = np.clip(S, np.finfo(S.dtype).eps, None)  # To avoid divide by zero warning on next line
                 V = np.dot(matrix.T.conj(), U * np.where(np.abs(S) <= np.finfo(S.dtype).eps, 0, 1/S)[None, :])
+                U, S, V = U[:, ::-1], S[::-1], V[:, ::-1]
+                V, R = np.linalg.qr(V)
+                V = V * (2*(np.diag(R) >= 0) - 1)  # we can't use np.sign because np.sign(0) == 0
             else:
                 S, V = scipy.sparse.linalg.eigsh(
                     np.dot(matrix.T.conj(), matrix), k=n_eigenvecs, which='LM', v0=v0
                 )
-                S = np.where(np.abs(S) <= np.finfo(S.dtype).eps, 0, np.sqrt(S))
+                S = np.sqrt(np.clip(S, 0, None))
+                S = np.clip(S, np.finfo(S.dtype).eps, None)
                 U = np.dot(matrix, V) * np.where(np.abs(S) <= np.finfo(S.dtype).eps, 0, 1/S)[None, :]
+                U, S, V = U[:, ::-1], S[::-1], V[:, ::-1]
+                U, R = np.linalg.qr(U)
+                U = U * (2*(np.diag(R) >= 0) - 1)
 
             # WARNING: here, V is still the transpose of what it should be
-            U, S, V = U[:, ::-1], S[::-1], V[:, ::-1]
             V = V.T.conj()
 
         if flip:

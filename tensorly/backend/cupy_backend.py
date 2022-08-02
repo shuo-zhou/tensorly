@@ -46,6 +46,11 @@ class CupyBackend(Backend):
         return cp.clip(tensor, a_min, a_max)
 
     @staticmethod
+    def lstsq(a, b):
+        x, residuals, _, _ = cp.linalg.lstsq(a, b, rcond=None)
+        return x, residuals
+
+    @staticmethod
     def sort(tensor, axis, descending = False):
         if descending:
             return cp.flip(cp.sort(tensor, axis=axis), axis = axis)
@@ -55,7 +60,7 @@ class CupyBackend(Backend):
 
 for name in ['float64', 'float32', 'int64', 'int32', 'complex128', 'complex64', 'reshape', 'moveaxis',
              'transpose', 'copy', 'ones', 'zeros', 'zeros_like', 'eye', 'trace', 'any',
-             'arange', 'where', 'dot', 'kron', 'concatenate', 'max', 'flip',
+             'arange', 'where', 'dot', 'kron', 'concatenate', 'max', 'flip', 'matmul',
              'min', 'all', 'mean', 'sum', 'cumsum', 'prod', 'sign', 'abs', 'sqrt', 'stack',
              'conj', 'diag', 'einsum', 'log2', 'tensordot']:
     CupyBackend.register_method(name, getattr(cp, name))

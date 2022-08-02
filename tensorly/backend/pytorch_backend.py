@@ -13,6 +13,8 @@ import numpy as np
 
 from .core import Backend
 
+linalg_lstsq_avail = LooseVersion(torch.__version__) >= LooseVersion('1.9.0')
+
 
 class PyTorchBackend(Backend):
     backend_name = 'pytorch'
@@ -99,6 +101,14 @@ class PyTorchBackend(Backend):
         return torch.norm(tensor, **kwds)
 
     @staticmethod
+    def dot(a, b):
+        if a.ndim > 2 and b.ndim > 2:
+            return torch.tensordot(a, b, dims=([-1], [-2]))
+        if not a.ndim or not b.ndim:
+            return a * b
+        return torch.matmul(a, b)
+
+    @staticmethod
     def mean(tensor, axis=None):
         if axis is None:
             return torch.mean(tensor)
@@ -111,7 +121,7 @@ class PyTorchBackend(Backend):
             return torch.sum(tensor)
         else:
             return torch.sum(tensor, dim=axis)
-    
+
     @staticmethod
     def flip(tensor, axis=None):
         if isinstance(axis, int):
@@ -137,7 +147,11 @@ class PyTorchBackend(Backend):
     @staticmethod
     def stack(arrays, axis=0):
         return torch.stack(arrays, dim=axis)
-    
+
+    @staticmethod
+    def diag(tensor, k=0):
+        return torch.diag(tensor, diagonal=k)
+
     @staticmethod
     def sort(tensor, axis, descending = False):
         if axis is None:
@@ -176,23 +190,35 @@ class PyTorchBackend(Backend):
         return solution
 
     @staticmethod
+    def lstsq(a, b):
+        if linalg_lstsq_avail:
+            x, residuals, _, _ = torch.linalg.lstsq(a, b, rcond=None, driver='gelsd')
+            return x, residuals
+        else:
+            n = a.shape[1]
+            sol = torch.lstsq(b, a)[0]
+            x = sol[:n]
+            residuals = torch.norm(sol[n:], dim=0) ** 2
+            return x, residuals if torch.matrix_rank(a) == n else torch.tensor([], device=x.device)
+
+    @staticmethod
     def eigh(tensor):
         """Legacy only, deprecated from PyTorch 1.8.0"""
         return torch.symeig(tensor, eigenvectors=True)
 
     @staticmethod
-    def svd(matrix, full_matrices=False):
-        full_matrices = (not full_matrices)
-        return torch.svd(matrix, some=full_matrices, compute_uv=True)
+    def svd(matrix, full_matrices=True):
+        some = not full_matrices
+        u, s, v = torch.svd(matrix, some=some, compute_uv=True)
+        return u, s, v.transpose(-2, -1).conj()
 
 # Register the other functions
 for name in ['float64', 'float32', 'int64', 'int32', 'complex128', 'complex64',
-             'is_tensor', 'ones', 'zeros', 'any', 'trace', 'cumsum',
-             'zeros_like', 'reshape', 'eye', 'max', 'min', 'prod', 'abs', 
-             'sqrt', 'sign', 'where', 'conj', 'diag', 'finfo', 'einsum', 'log2', 'sin', 'cos']:
+             'is_tensor', 'ones', 'zeros', 'any', 'trace', 'cumsum', 'tensordot',
+             'zeros_like', 'reshape', 'eye', 'max', 'min', 'prod', 'abs', 'matmul',
+             'sqrt', 'sign', 'where', 'conj', 'finfo', 'einsum', 'log2', 'sin', 'cos']:
     PyTorchBackend.register_method(name, getattr(torch, name))
 
-PyTorchBackend.register_method('dot', torch.matmul)
 
 # PyTorch 1.8.0 has a much better NumPy interface but somoe haven't updated yet
 if LooseVersion(torch.__version__) < LooseVersion('1.8.0'):

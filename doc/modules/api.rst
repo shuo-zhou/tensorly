@@ -128,6 +128,8 @@ Algebraic operations
     :template: function.rst
 
     dot
+    matmul
+    tensordot
     kron
     solve
     qr
@@ -281,9 +283,9 @@ TensorLy provides you with all the tensor algebra functions you need:
     proximal.svd_thresholding
     proximal.procrustes
     inner
-    contract
-    tensor_dot
-    batched_tensor_dot
+    outer
+    batched_outer
+    tensordot
     higher_order_moment
 
 Tensor Algebra Backend
