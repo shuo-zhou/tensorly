@@ -9,7 +9,7 @@ from ..tenalg import multi_mode_dot
 # License: BSD 3 clause
 
 
-def mpca(tensor, var_ratio=0.95, max_iter=1, mean_removal=True):
+def mpca(tensor, var_ratio=0.95, max_iter=1):
     """Multilinear Principal Component Analysis (MPCA)
 
     Parameters
@@ -22,8 +22,6 @@ def mpca(tensor, var_ratio=0.95, max_iter=1, mean_removal=True):
         Percentage of variance explained to keeep (between 0 and 1), by default 0.95
     max_iter : int, optional
         Maximum number of iteration, by default 1.
-    mean_removal: bool, optional
-        Whether remove the mean from training data, by default True.
 
     Returns
     -------
@@ -65,69 +63,50 @@ def mpca(tensor, var_ratio=0.95, max_iter=1, mean_removal=True):
     if var_ratio <= 0 or var_ratio > 1:
         raise ValueError('var_ratio value should be in range (0, 1], but given %s.' % var_ratio)
 
-    n_dim = tl.ndim(tensor)
-    if not n_dim >= 2:
+    n_dims = tl.ndim(tensor)
+    if not n_dims >= 2:
         raise ValueError('Input tensor should be at least a 2D matrix, but given a vector.')
-    n_spl = tensor.shape[0]
 
     # tensor_ = tl.zeros(tensor.shape)  # normalised tensor (mean removal)
-    if mean_removal:
-        tensor_mean = tl.mean(tensor, axis=0)
-        tensor_ = tensor - tensor_mean  # remove_mode_mean(tensor, mode=-1)
-    else:
-        tensor_ = tensor
-        tensor_mean = tl.zeros(shape=tensor.shape[1:])
+    tensor_mean = tl.mean(tensor, axis=0)
+    tensor_ = tensor - tensor_mean
+
     # init
     phi = dict()
-    eig_vecs_sorted = dict()  # dictionary of eigenvectors for all modes
-    # lambdas = dict()  # dictionary of eigenvalues for all modes
-    # cums = dict()  # cumulative distribution of eigenvalues for all modes
     factors = []
     shape_out = ()
-    for i in range(1, n_dim):
-        for j in range(n_spl):
-            tensor_j = unfold(tensor_[j, :], mode=i - 1)
-            if j not in phi:
-                phi[i] = 0
-            phi[i] = phi[i] + tl.dot(tensor_j, tensor_j.T)
 
-    for i in range(1, n_dim):
+    for i in range(1, n_dims):
+        phi[i] = unfold(tensor_, mode=i)
         u, s, v = tl.partial_svd(phi[i])
-        idx_sorted = (-s).argsort()
-        eig_vecs_sorted[i] = u[:, idx_sorted]
+        idx_sorted = (-1 * s).argsort()
         cum = s[idx_sorted]
         var_tot = tl.sum(cum)
 
         for j in range(1, cum.shape[0] + 1):
-            if tl.sum(cum[:j]) / var_tot > var_ratio:
+            if tl.sum(cum[: j]) / var_tot > var_ratio:
                 shape_out += (j,)
                 break
-        factors.append(eig_vecs_sorted[i][:, :shape_out[i - 1]].T)
+        factors.append(u[:, idx_sorted][:, : shape_out[i - 1]].T)
 
     for i_iter in range(max_iter):
-        phi = dict()
-        for i in range(1, n_dim):  # ith mode
-            if i not in phi:
-                phi[i] = 0
-            for j in range(n_spl):
-                tensor_j = tensor_[j, :]  # jth tensor/sample
-                # principal component of tensor j
-                tpc_j = multi_mode_dot(tensor_j, [factors[m] for m in range(n_dim - 1) if m != i - 1],
-                                       modes=[m for m in range(n_dim - 1) if m != i - 1])
-                tpc_j_unfold = unfold(tpc_j, i - 1)
-                phi[i] = tl.dot(tpc_j_unfold, tpc_j_unfold.T) + phi[i]
-
+        for i in range(1, n_dims):  # ith mode
+            tensor_features = multi_mode_dot(
+                tensor_,
+                [factors[m] for m in range(n_dims - 1) if m != i - 1],
+                modes=[m for m in range(1, n_dims) if m != i]
+            )
+            phi[i] = unfold(tensor_features, i)
             u, s, v = tl.partial_svd(phi[i])
-            idx_sorted = (-s).argsort()
+            idx_sorted = (-1 * s).argsort()
             # lambdas[i] = s[idx_sorted]
-            factors[i - 1] = u[:, idx_sorted]
-            factors[i - 1] = (factors[i - 1][:, :shape_out[i - 1]]).T
+            factors[i - 1] = (u[:, idx_sorted][:, :shape_out[i - 1]]).T
 
-    # tensor principal components
-    tpc = multi_mode_dot(tensor_, factors, modes=[m for m in range(1, n_dim)])
-    tpc_unfold = unfold(tpc, mode=0)  # vectorise tensor principal components
-    # diagonal of the covariance of tensor principal components
-    tpc_cov_diag = tl.diag(tl.dot(tpc_unfold.T, tpc_unfold))
-    idx_order = (-tpc_cov_diag).argsort()
+    # tensor features/projections
+    tensor_features = multi_mode_dot(tensor_, factors, modes=[m for m in range(1, n_dims)])
+    tf_unfold = unfold(tensor_features, mode=0)  # vectorise tensor features
+    # diagonal of the covariance of tensor features
+    tpc_cov_diag = tl.diag(tl.dot(tf_unfold.T, tf_unfold))
+    idx_order = (-1 * tpc_cov_diag).argsort()
 
     return factors, idx_order, tensor_mean

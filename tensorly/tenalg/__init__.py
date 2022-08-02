@@ -15,6 +15,7 @@ from .core_tenalg import contract
 from .core_tenalg import tensor_dot, batched_tensor_dot
 from .core_tenalg import higher_order_moment
 from .core_tenalg import _tt_matrix_to_tensor
+from .core_tenalg import remove_mode_mean
 
 from . import core_tenalg as core
 from . import einsum_tenalg
@@ -47,6 +48,7 @@ def get_tenalg_backend():
     """Returns the current backend
     """
     return _LOCAL_STATE.tenalg_backend
+
 
 def set_tenalg_backend(backend='core', local_threadsafe=False):
     """Set the current tenalg backend
@@ -101,6 +103,7 @@ def tenalg_backend_context(backend, local_threadsafe=False):
     finally:
         set_tenalg_backend(_old_backend)
 
+
 def dynamically_dispatch_tenalg(function):
     name = function.__name__
 
@@ -132,5 +135,6 @@ outer = dynamically_dispatch_tenalg(outer)
 tensor_dot = dynamically_dispatch_tenalg(tensor_dot)
 batched_tensor_dot = dynamically_dispatch_tenalg(batched_tensor_dot)
 higher_order_moment = dynamically_dispatch_tenalg(higher_order_moment)
+remove_mode_mean = dynamically_dispatch_tenalg(remove_mode_mean)
 
 initialize_tenalg_backend()
