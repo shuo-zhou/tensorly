@@ -134,7 +134,6 @@ Algebraic operations
     solve
     qr
     kr
-    partial_svd
 
 
 :mod:`tensorly.base`: Core tensor functions
@@ -179,7 +178,7 @@ Algebraic operations
     cp_normalize
     cp_norm
     cp_mode_dot
-    unfolding_dot_khatri_rao
+    cp_permute_factors
 
 
 :mod:`tensorly.tucker_tensor`: Tensors in Tucker form
@@ -217,6 +216,7 @@ Algebraic operations
     tt_to_tensor
     tt_to_unfolded
     tt_to_vec
+    pad_tt_rank
 
 
 :mod:`tensorly.tt_matrix`: Matrices in TT form
@@ -276,6 +276,7 @@ TensorLy provides you with all the tensor algebra functions you need:
     :template: function.rst
 
     khatri_rao
+    unfolding_dot_khatri_rao
     kronecker
     mode_dot
     multi_mode_dot
@@ -300,9 +301,9 @@ If you have your own library implementing tensor algebraic functions, you could 
     :toctree: generated/
     :template: function.rst
 
-    set_tenalg_backend
-    get_tenalg_backend
-    tenalg_backend_context
+    set_backend
+    get_backend
+    backend_context
 
 
 :mod:`tensorly.decomposition`: Tensor Decomposition
@@ -331,6 +332,11 @@ Note that these are currently experimental and may change in the future.
     TensorTrain
     Parafac2
     SymmetricCP
+    ConstrainedCP
+    TensorTrain
+    TensorRing
+    TensorTrainMatrix
+
 
 Functions
 ---------
@@ -351,10 +357,13 @@ Functions
     tucker
     partial_tucker
     non_negative_tucker
+    non_negative_tucker_hals
     robust_pca
     tensor_train
     tensor_train_matrix
+    tensor_ring
     parafac2
+    constrained_parafac
 
 
 :mod:`tensorly.regression`: Tensor Regression
