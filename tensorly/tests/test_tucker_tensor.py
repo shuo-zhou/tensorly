@@ -24,24 +24,22 @@ from ..random import random_tucker
 
 
 def test_validate_tucker_tensor():
-    rng = tl.check_random_state(12345)
+    rng = tl.check_random_state(1234)
     true_shape = (3, 4, 5)
     true_rank = (3, 2, 4)
-    core, factors = random_tucker(true_shape, rank=true_rank)
+    core, factors = random_tucker(true_shape, rank=true_rank, random_state=rng)
 
     # Check shape and rank returned
     shape, rank = _validate_tucker_tensor((core, factors))
     assert_equal(
         shape,
         true_shape,
-        err_msg="Returned incorrect shape (got {}, expected {})".format(
-            shape, true_shape
-        ),
+        err_msg=f"Returned incorrect shape (got {shape}, expected {true_shape})",
     )
     assert_equal(
         rank,
         true_rank,
-        err_msg="Returned incorrect rank (got {}, expected {})".format(rank, true_rank),
+        err_msg=f"Returned incorrect rank (got {rank}, expected {true_rank})",
     )
 
     # One of the factors has the wrong rank

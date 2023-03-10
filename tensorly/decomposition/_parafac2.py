@@ -51,9 +51,7 @@ def initialize_decomposition(
         unfolded_mode_2 = unfold(padded_tensor, 2)
         if T.shape(unfolded_mode_2)[0] < rank:
             raise ValueError(
-                "Cannot perform SVD init if rank ({}) is greater than the number of columns in each tensor slice ({})".format(
-                    rank, T.shape(unfolded_mode_2)[0]
-                )
+                f"Cannot perform SVD init if rank ({rank}) is greater than the number of columns in each tensor slice ({T.shape(unfolded_mode_2)[0]})"
             )
         C = svd_interface(unfolded_mode_2, n_eigenvecs=rank, method=svd)[0]
         B = T.eye(rank, **context)
@@ -71,7 +69,7 @@ def initialize_decomposition(
         if decomposition.rank != rank:
             raise ValueError("Cannot init with a decomposition of different rank")
         return decomposition
-    raise ValueError('Initialization method "{}" not recognized'.format(init))
+    raise ValueError(f'Initialization method "{init}" not recognized')
 
 
 def _pad_by_zeros(tensor_slices):
@@ -88,38 +86,27 @@ def _pad_by_zeros(tensor_slices):
     return padded
 
 
-def _compute_projections(tensor_slices, factors, svd, out=None):
-    A, B, C = factors
+def _compute_projections(tensor_slices, factors, svd):
+    n_eig = factors[0].shape[1]
+    out = []
 
-    if out is None:
-        out = [
-            T.zeros((tensor_slice.shape[0], C.shape[1]), **T.context(tensor_slice))
-            for tensor_slice in tensor_slices
-        ]
-
-    slice_idxes = range(T.shape(A)[0])
-    for projection, i, tensor_slice in zip(out, slice_idxes, tensor_slices):
-        a_i = A[i]
-        lhs = T.dot(B, T.transpose(a_i * C))
+    for A, tensor_slice in zip(factors[0], tensor_slices):
+        lhs = T.dot(factors[1], T.transpose(A * factors[2]))
         rhs = T.transpose(tensor_slice)
-        U, _, Vh = svd_interface(T.dot(lhs, rhs), n_eigenvecs=A.shape[1], method=svd)
+        U, _, Vh = svd_interface(T.dot(lhs, rhs), n_eigenvecs=n_eig, method=svd)
 
-        out[i] = tl.index_update(projection, tl.index[:], T.transpose(T.dot(U, Vh)))
+        out.append(T.transpose(T.dot(U, Vh)))
 
     return out
 
 
-def _project_tensor_slices(tensor_slices, projections, out=None):
-    if out is None:
-        rank = projections[0].shape[1]
-        num_slices = len(tensor_slices)
-        num_cols = tensor_slices[0].shape[1]
-        out = T.zeros((num_slices, rank, num_cols), **T.context(tensor_slices[0]))
+def _project_tensor_slices(tensor_slices, projections):
+    slices = []
 
-    for i, (tensor_slice, projection) in enumerate(zip(tensor_slices, projections)):
-        slice_ = T.dot(T.transpose(projection), tensor_slice)
-        out = tl.index_update(out, tl.index[i, :], slice_)
-    return out
+    for t, p in zip(tensor_slices, projections):
+        slices.append(T.dot(T.transpose(p), t))
+
+    return tl.stack(slices)
 
 
 def _parafac2_reconstruction_error(tensor_slices, decomposition):
@@ -318,20 +305,14 @@ def parafac2(
                 tol=1e-100,
             )[1]
 
-    projected_tensor = tl.zeros(
-        [factor.shape[0] for factor in factors], **T.context(factors[0])
-    )
-
     for iteration in range(n_iter_max):
         if verbose:
             print("Starting iteration", iteration)
         factors[1] = factors[1] * T.reshape(weights, (1, -1))
         weights = T.ones(weights.shape, **tl.context(tensor_slices[0]))
 
-        projections = _compute_projections(tensor_slices, factors, svd, out=projections)
-        projected_tensor = _project_tensor_slices(
-            tensor_slices, projections, out=projected_tensor
-        )
+        projections = _compute_projections(tensor_slices, factors, svd)
+        projected_tensor = _project_tensor_slices(tensor_slices, projections)
         factors = parafac_updates(projected_tensor, weights, factors)
 
         if normalize_factors:
@@ -359,9 +340,7 @@ def parafac2(
             if iteration >= 1:
                 if verbose:
                     print(
-                        "PARAFAC2 reconstruction error={}, variation={}.".format(
-                            rec_errors[-1], rec_errors[-2] - rec_errors[-1]
-                        )
+                        f"PARAFAC2 reconstruction error={rec_errors[-1]}, variation={rec_errors[-2] - rec_errors[-1]}."
                     )
 
                 if (
@@ -370,11 +349,11 @@ def parafac2(
                     or rec_errors[-1] ** 2 < absolute_tol
                 ):
                     if verbose:
-                        print("converged in {} iterations.".format(iteration))
+                        print(f"converged in {iteration} iterations.")
                     break
             else:
                 if verbose:
-                    print("PARAFAC2 reconstruction error={}".format(rec_errors[-1]))
+                    print(f"PARAFAC2 reconstruction error={rec_errors[-1]}")
 
     parafac2_tensor = Parafac2Tensor((weights, factors, projections))
 

@@ -125,7 +125,7 @@ def initialize_cp(
                 "be possible to convert it to a CPTensor instance"
             )
     else:
-        raise ValueError('Initialization method "{}" not recognized'.format(init))
+        raise ValueError(f'Initialization method "{init}" not recognized')
 
     if non_negative:
         # Make decomposition feasible by taking the absolute value of all factor matrices
@@ -249,9 +249,9 @@ def parafac(
     callback=None,
 ):
     """CANDECOMP/PARAFAC decomposition via alternating least squares (ALS)
-    Computes a rank-`rank` decomposition of `tensor` [1]_ such that::
+    Computes a rank-`rank` decomposition of `tensor` [1]_ such that:
 
-        tensor = [|weights; factors[0], ..., factors[-1] |].
+    ``tensor = [|weights; factors[0], ..., factors[-1] |]``.
 
     Parameters
     ----------
@@ -315,10 +315,8 @@ def parafac(
     ----------
     .. [1] T.G.Kolda and B.W.Bader, "Tensor Decompositions and Applications", SIAM
            REVIEW, vol. 51, n. 3, pp. 455-500, 2009.
-
     .. [2] Tomasi, Giorgio, and Rasmus Bro. "PARAFAC and missing values."
            Chemometrics and Intelligent Laboratory Systems 75.2 (2005): 163-180.
-
     .. [3] R. Bro, "Multi-Way Analysis in the Food Industry: Models, Algorithms, and
            Applications", PhD., University of Amsterdam, 1998
     """
@@ -438,7 +436,7 @@ def parafac(
             line_iter = False
 
         # Calculate the current unnormalized error if we need it
-        if (tol or return_errors) and line_iter is False:
+        if (tol or return_errors) and not line_iter:
             unnorml_rec_error, tensor, norm_tensor = error_calc(
                 tensor, norm_tensor, weights, factors, sparsity, mask, mttkrp
             )
@@ -449,7 +447,7 @@ def parafac(
                 )
 
         # Start line search if requested.
-        if line_iter is True:
+        if line_iter:
             jump = iteration ** (1.0 / acc_pow)
 
             new_weights = weights_last + (weights - weights_last) * jump
@@ -469,7 +467,7 @@ def parafac(
                 acc_fail = 0
 
                 if verbose:
-                    print("Accepted line search jump of {}.".format(jump))
+                    print(f"Accepted line search jump of {jump}.")
             else:
                 unnorml_rec_error, tensor, norm_tensor = error_calc(
                     tensor, norm_tensor, weights, factors, sparsity, mask, mttkrp
@@ -477,7 +475,7 @@ def parafac(
                 acc_fail += 1
 
                 if verbose:
-                    print("Line search failed for jump of {}.".format(jump))
+                    print(f"Line search failed for jump of {jump}.")
 
                 if acc_fail == max_fail:
                     acc_pow += 1.0
@@ -486,8 +484,9 @@ def parafac(
                     if verbose:
                         print("Reducing acceleration.")
 
-        rec_error = unnorml_rec_error / norm_tensor
-        rec_errors.append(rec_error)
+        if (tol or return_errors) and not line_iter:
+            rec_error = unnorml_rec_error / norm_tensor
+            rec_errors.append(rec_error)
 
         if callback is not None:
             cp_tensor = CPTensor((weights, factors))
@@ -511,9 +510,7 @@ def parafac(
 
                 if verbose:
                     print(
-                        "iteration {}, reconstruction error: {}, decrease = {}, unnormalized = {}".format(
-                            iteration, rec_error, rec_error_decrease, unnorml_rec_error
-                        )
+                        f"iteration {iteration}, reconstruction error: {rec_error}, decrease = {rec_error_decrease}, unnormalized = {unnorml_rec_error}"
                     )
 
                 if cvg_criterion == "abs_rec_error":
@@ -533,6 +530,7 @@ def parafac(
                     print(f"reconstruction error={rec_errors[-1]}")
         if normalize_factors:
             weights, factors = cp_normalize((weights, factors))
+
     cp_tensor = CPTensor((weights, factors))
 
     if sparsity:
@@ -645,10 +643,10 @@ def randomised_parafac(
     max_stagnation=20,
     return_errors=False,
     random_state=None,
-    verbose=1,
+    verbose=0,
     callback=None,
 ):
-    """Randomised CP decomposition via sampled ALS
+    """Randomised CP decomposition via sampled ALS [3]_
 
     Parameters
     ----------
@@ -671,7 +669,7 @@ def randomised_parafac(
     random_state : {None, int, np.random.RandomState}, default is None
     return_errors : bool, default is False
         if True, return a list of all errors
-    verbose : int, optional
+    verbose : int, optional, default is 0
         level of verbosity
 
     Returns
@@ -683,7 +681,7 @@ def randomised_parafac(
     References
     ----------
     .. [3] Casey Battaglino, Grey Ballard and Tamara G. Kolda,
-       "A Practical Randomized CP Tensor Decomposition",
+           "A Practical Randomized CP Tensor Decomposition",
     """
     rank = validate_cp_rank(tl.shape(tensor), rank=rank)
 
@@ -751,9 +749,7 @@ def randomised_parafac(
             if iteration > 1:
                 if verbose:
                     print(
-                        "reconstruction error={}, variation={}.".format(
-                            rec_errors[-1], rec_errors[-2] - rec_errors[-1]
-                        )
+                        f"reconstruction error={rec_errors[-1]}, variation={rec_errors[-2]-rec_errors[-1]}."
                     )
 
                 if (tol and abs(rec_errors[-2] - rec_errors[-1]) < tol) or (
@@ -837,10 +833,8 @@ class CP(DecompositionMixin):
     ----------
     .. [1] T.G.Kolda and B.W.Bader, "Tensor Decompositions and Applications",
            SIAM REVIEW, vol. 51, n. 3, pp. 455-500, 2009.
-
     .. [2] Tomasi, Giorgio, and Rasmus Bro. "PARAFAC and missing values."
            Chemometrics and Intelligent Laboratory Systems 75.2 (2005): 163-180.
-
     .. [3] R. Bro, "Multi-Way Analysis in the Food Industry: Models, Algorithms, and
            Applications", PhD., University of Amsterdam, 1998
     """

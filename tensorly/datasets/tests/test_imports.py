@@ -1,8 +1,10 @@
+import pytest
+
 from ..data_imports import (
     load_IL2data,
     load_covid19_serology,
-    fetch_indian_pines,
-    fetch_kinetic,
+    load_indian_pines,
+    load_kinetic,
 )
 
 
@@ -29,7 +31,7 @@ def test_COVID19_data():
 
 def test_indian_pines():
     """Test that data import dimensions match."""
-    data = fetch_indian_pines()
+    data = load_indian_pines()
 
     tensor = data["tensor"]
     assert tensor.shape[0] == len(data["ticks"][0])
@@ -39,7 +41,7 @@ def test_indian_pines():
 
 def test_kinetic():
     """Test that data import dimensions match."""
-    data = fetch_kinetic()
+    data = load_kinetic()
 
     tensor = data["tensor"]
     assert tensor.shape[0] == 64

@@ -90,7 +90,6 @@ class TuckerRegressor:
         norm_W = []
 
         for iteration in range(self.n_iter_max):
-
             # Optimise modes of W
             for i in range(len(W)):
                 phi = partial_tensor_to_vec(
@@ -128,7 +127,7 @@ class TuckerRegressor:
 
                 if weight_evolution <= self.tol:
                     if self.verbose:
-                        print("\nConverged in {} iterations".format(iteration))
+                        print(f"\nConverged in {iteration} iterations")
                     break
 
         self.weight_tensor_ = weight_tensor_

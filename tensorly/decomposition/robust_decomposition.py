@@ -107,7 +107,6 @@ def robust_pca(
     mu = mu_init
 
     for iteration in range(n_iter_max):
-
         for i in range(T.ndim(X)):
             J[i] = fold(
                 svd_thresholding(unfold(D, i) + unfold(L[i], i) / mu, reg_J / mu),
@@ -138,7 +137,7 @@ def robust_pca(
         if iteration > 1:
             if rec_X[-1] <= tol and rec_D[-1] <= tol:
                 if verbose:
-                    print("\nConverged in {} iterations".format(iteration))
+                    print(f"\nConverged in {iteration} iterations")
                 break
 
     if return_errors:

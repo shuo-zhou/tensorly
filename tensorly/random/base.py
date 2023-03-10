@@ -4,7 +4,7 @@ from ..tucker_tensor import tucker_to_tensor, TuckerTensor, validate_tucker_rank
 from ..tt_tensor import tt_to_tensor, TTTensor, validate_tt_rank
 from ..tt_matrix import tt_matrix_to_tensor, TTMatrix, validate_tt_matrix_rank
 from ..tr_tensor import TRTensor, tr_to_tensor, validate_tr_rank
-from ..parafac2_tensor import parafac2_to_tensor, Parafac2Tensor
+from ..parafac2_tensor import parafac2_to_tensor, Parafac2Tensor, parafac2_normalise
 from .. import backend as T
 from ..utils import DefineDeprecated
 import warnings
@@ -17,7 +17,7 @@ def random_tensor(shape, random_state=None, **context):
 
 
 def random_parafac2(
-    shapes, rank, full=False, random_state=None, normalise_factors=True, **context
+    shapes, rank, full=False, random_state=None, normalise_factors=False, **context
 ):
     """Generate a random PARAFAC2 tensor
 
@@ -52,6 +52,9 @@ def random_parafac2(
     )
 
     parafac2_tensor = Parafac2Tensor((weights, factors, projection_matrices))
+
+    if normalise_factors:
+        parafac2_tensor = parafac2_normalise(parafac2_tensor)
 
     if full:
         return parafac2_to_tensor(parafac2_tensor)
@@ -88,7 +91,7 @@ def random_cp(shape, rank, full=False, orthogonal=False,
     if (rank > min(shape)) and orthogonal:
         warnings.warn(
             "Can only construct orthogonal tensors when rank <= min(shape) but got "
-            "a tensor with min(shape)={} < rank={}".format(min(shape), rank)
+            f"a tensor with min(shape)={min(shape)} < rank={rank}"
         )
 
     rns = T.check_random_state(random_state)
@@ -105,7 +108,15 @@ def random_cp(shape, rank, full=False, orthogonal=False,
         return CPTensor((weights, factors))
 
 
-def random_tucker(shape, rank, full=False, orthogonal=False, random_state=None, **context):
+def random_tucker(
+    shape,
+    rank,
+    full=False,
+    orthogonal=False,
+    random_state=None,
+    non_negative=False,
+    **context,
+):
     """Generates a random Tucker tensor
 
     Parameters
@@ -136,11 +147,13 @@ def random_tucker(shape, rank, full=False, orthogonal=False, random_state=None, 
     if orthogonal:
         for i, (s, r) in enumerate(zip(shape, rank)):
             if r > s:
-                warnings.warn('Selected orthogonal=True, but selected a rank larger than the tensor size for mode {0}: '
-                              'rank[{0}]={1} > shape[{0}]={2}.'.format(i, r, s))
+                warnings.warn(
+                    "Selected orthogonal=True, but selected a rank larger than the tensor size for mode {0}: "
+                    f"rank[{i}]={r} > shape[{i}]={s}."
+                )
 
     factors = []
-    for (s, r) in zip(shape, rank):
+    for s, r in zip(shape, rank):
         if orthogonal:
             factor = T.tensor(rns.random_sample((s, s)), **context)
             Q, _ = T.qr(factor)
@@ -149,6 +162,11 @@ def random_tucker(shape, rank, full=False, orthogonal=False, random_state=None, 
             factors.append(T.tensor(rns.random_sample((s, r)), **context))
 
     core = T.tensor(rns.random_sample(rank), **context)
+
+    if non_negative:
+        factors = [T.abs(f) for f in factors]
+        core = T.abs(core)
+
     if full:
         return tucker_to_tensor((core, factors))
     else:

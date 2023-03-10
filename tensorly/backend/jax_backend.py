@@ -1,5 +1,4 @@
-import warnings
-from distutils.version import LooseVersion
+from packaging.version import Version
 
 try:
     import jax
@@ -78,6 +77,10 @@ class JaxBackend(Backend, backend_name="jax"):
         m = mask.reshape((-1, 1)) if mask is not None else 1
         return np.einsum(operation, *matrices).reshape((-1, n_columns)) * m
 
+    @staticmethod
+    def logsumexp(tensor, axis=0):
+        return jax.scipy.special.logsumexp(tensor, axis=axis)
+
 
 for name in (
     backend_types
@@ -115,7 +118,7 @@ for name in (
 for name in ["solve", "qr", "svd", "eigh"]:
     JaxBackend.register_method(name, getattr(np.linalg, name))
 
-if LooseVersion(jax.__version__) >= LooseVersion("0.3.0"):
+if Version(jax.__version__) >= Version("0.3.0"):
 
     def index_update(tensor, indices, values):
         return tensor.at[indices].set(values)

@@ -13,7 +13,6 @@ from ..parafac2_tensor import (
     parafac2_normalise,
     apply_parafac2_projections,
 )
-from ..tenalg import kronecker, mode_dot
 from ..testing import (
     assert_array_equal,
     assert_array_almost_equal,
@@ -34,14 +33,12 @@ def test_validate_parafac2_tensor():
     assert_equal(
         shape,
         true_shape,
-        err_msg="Returned incorrect shape (got {}, expected {})".format(
-            shape, true_shape
-        ),
+        err_msg=f"Returned incorrect shape (got {shape}, expected {true_shape})",
     )
     assert_equal(
         rank,
         true_rank,
-        err_msg="Returned incorrect rank (got {}, expected {})".format(rank, true_rank),
+        err_msg=f"Returned incorrect rank (got {rank}, expected {true_rank})",
     )
 
     # One of the factors has the wrong rank

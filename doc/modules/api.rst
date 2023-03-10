@@ -2,8 +2,8 @@
 API reference
 =============
 
-:mod:`tensorly`: A unified backend interface
-============================================
+Unified backend interface (:mod:`tensorly`)
+===========================================
 
 There are several libraries for multi-dimensional array computation, including NumPy, PyTorch, MXNet, TensorFlow, JAX and CuPy.
 They all have strenghs and weaknesses, e.g. some are better on CPU, some better on GPU etc. 
@@ -20,6 +20,9 @@ you should only use functions through the backend (:func:`tensorly.tensor` in th
 Setting the backend
 -------------------
 
+You can simply call ``set_backend('pytorch')`` to set the backend to `PyTorch`, and similarly for NumPy, JAX, etc. 
+You can also use the context manager ``backend_context`` if you want to execute a block of code with a different backend.
+
 .. autosummary::
     :toctree: generated
     :template: function.rst
@@ -27,6 +30,8 @@ Setting the backend
     set_backend
     get_backend
     backend_context
+    use_dynamic_dispatch
+    use_static_dispatch
 
 Context of a tensor
 -------------------
@@ -136,8 +141,8 @@ Algebraic operations
     kr
 
 
-:mod:`tensorly.base`: Core tensor functions
-============================================
+Core functions (:mod:`tensorly.base`)
+=====================================
 
 .. automodule:: tensorly.base
     :no-members:
@@ -159,8 +164,8 @@ Algebraic operations
     partial_vec_to_tensor
 
 
-:mod:`tensorly.cp_tensor`: Tensors in CP form
-=============================================
+Tensors in CP form (:mod:`tensorly.cp_tensor`)
+==============================================
 
 .. automodule:: tensorly.cp_tensor
     :no-members:
@@ -181,8 +186,8 @@ Algebraic operations
     cp_permute_factors
 
 
-:mod:`tensorly.tucker_tensor`: Tensors in Tucker form
-=====================================================
+Tensors in Tucker form (:mod:`tensorly.tucker_tensor`)
+======================================================
 
 .. automodule:: tensorly.tucker_tensor
     :no-members:
@@ -200,8 +205,8 @@ Algebraic operations
     tucker_mode_dot
 
 
-:mod:`tensorly.tt_tensor`: Tensors in Tensor-Train (MPS) form
-=============================================================
+Tensors in TT (MPS) form (:mod:`tensorly.tt_tensor`)
+====================================================
 
 .. automodule:: tensorly.tt_tensor
     :no-members:
@@ -219,8 +224,8 @@ Algebraic operations
     pad_tt_rank
 
 
-:mod:`tensorly.tt_matrix`: Matrices in TT form
-==============================================
+Matrices in TT form (:mod:`tensorly.tt_matrix`)
+===============================================
 
 .. automodule:: tensorly.tt_matrix
     :no-members:
@@ -237,8 +242,8 @@ Algebraic operations
     tt_matrix_to_vec
 
 
-:mod:`tensorly.parafac2_tensor`: Tensors in PARAFAC2 form
-=========================================================
+Tensors in PARAFAC2 form (:mod:`tensorly.parafac2_tensor`)
+==========================================================
 
 .. automodule:: tensorly.parafac2_tensor
     :no-members:
@@ -257,8 +262,8 @@ Algebraic operations
     parafac2_to_vec
 
 
-:mod:`tensorly.tenalg`: Tensor Algebra
-======================================
+Tensor Algebra (:mod:`tensorly.tenalg`)
+=======================================
 
 Available functions
 -------------------
@@ -270,6 +275,16 @@ TensorLy provides you with all the tensor algebra functions you need:
     :no-inherited-members:
 
 .. currentmodule:: tensorly.tenalg
+
+A unified SVD interface: 
+
+.. autosummary::
+    :toctree: generated/
+    :template: function.rst
+
+    svd_interface
+
+Other tensor algebraic functionalities:
 
 .. autosummary::
     :toctree: generated/
@@ -306,7 +321,7 @@ If you have your own library implementing tensor algebraic functions, you could 
     backend_context
 
 
-:mod:`tensorly.decomposition`: Tensor Decomposition
+Tensor Decomposition (:mod:`tensorly.decomposition`)
 ====================================================
 
 .. automodule:: tensorly.decomposition
@@ -366,7 +381,7 @@ Functions
     constrained_parafac
 
 
-:mod:`tensorly.regression`: Tensor Regression
+Tensor Regression (:mod:`tensorly.regression`)
 ==============================================
 
 .. automodule:: tensorly.regression
@@ -381,9 +396,10 @@ Functions
 
     tucker_regression.TuckerRegressor
     cp_regression.CPRegressor
+    CP_PLSR
 
 
-:mod:`tensorly.metrics`: Performance measures
+Performance measures (:mod:`tensorly.metrics`)
 ==============================================
 
 .. automodule:: tensorly.metrics
@@ -399,10 +415,11 @@ Functions
     regression.MSE
     regression.RMSE
     factors.congruence_coefficient
+    correlation_index
 
 
-:mod:`tensorly.random`: Sampling tensors
-========================================
+Sampling tensors (:mod:`tensorly.random`)
+=========================================
 
 .. automodule:: tensorly.random
    :no-members:
@@ -422,8 +439,8 @@ Functions
 
 
 
-:mod:`tensorly.datasets`: Datasets
-==================================
+Datasets (:mod:`tensorly.datasets`)
+===================================
 
 .. automodule:: tensorly.datasets
     :no-members:
@@ -436,10 +453,32 @@ Functions
     :template: function.rst
 
     synthetic.gen_image
+    load_IL2data
+    load_covid19_serology
+    load_indian_pines
+    load_kinetic
+
+Plugin functionalities (:mod:`tensorly.plugins`)
+================================================
+Automatically cache the optimal contraction path when using the `einsum` tensor algebra backend
+
+.. automodule:: tensorly.plugins
+    :no-members:
+    :no-inherited-members:
+
+.. currentmodule:: tensorly.plugins
+
+.. autosummary::
+    :toctree: generated/
+    :template: function.rst
+
+    use_opt_einsum
+    use_default_einsum
+    use_cuquantum
 
 
-:mod:`tensorly.contrib`: Experimental features
-==============================================
+Experimental features (:mod:`tensorly.contrib`)
+===============================================
 
 .. automodule:: tensorly.contrib
     :no-members:
@@ -452,6 +491,7 @@ Functions
     :template: function.rst
 
     decomposition.tensor_train_cross
+    decomposition.tensor_train_OI
 
 Sparse tensors
 --------------
