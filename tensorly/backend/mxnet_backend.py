@@ -9,7 +9,6 @@ except ImportError as error:
     )
     raise ImportError(message) from error
 
-import warnings
 import numpy
 from .core import Backend, backend_basic_math, backend_array
 
@@ -17,6 +16,14 @@ mx.npx.set_np()
 
 
 class MxnetBackend(Backend, backend_name="mxnet"):
+    def __init__(name):
+        message = (
+            "The MXNet backend may be deprecated in future versions.\n"
+            "Please consider transitioning to an alternative."
+        )
+        DeprecationWarning(message)
+        super().__init__()
+
     @staticmethod
     def context(tensor):
         return {"dtype": tensor.dtype}
@@ -85,11 +92,6 @@ class MxnetBackend(Backend, backend_name="mxnet"):
         return U, S, V
 
     @staticmethod
-    def lstsq(a, b):
-        x, residuals, _, _ = np.linalg.lstsq(a, b, rcond=None)
-        return x, residuals
-
-    @staticmethod
     def logsumexp(x, axis=0):
         max_x = np.max(x, axis=axis, keepdims=True)
         return np.squeeze(
@@ -136,5 +138,5 @@ for name in (
 ):
     MxnetBackend.register_method(name, getattr(np, name))
 
-for name in ["solve", "qr", "eigh"]:
+for name in ["solve", "qr", "eigh", "lstsq"]:
     MxnetBackend.register_method(name, getattr(np.linalg, name))
